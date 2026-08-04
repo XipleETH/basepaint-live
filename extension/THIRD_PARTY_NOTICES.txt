@@ -1,0 +1,19 @@
+BasePaint Live Rooms includes bundled open-source software.
+
+LiveKit Client SDK for JavaScript
+Copyright LiveKit, Inc.
+Licensed under the Apache License, Version 2.0.
+https://github.com/livekit/client-sdk-js
+
+LiveKit Protocol
+Copyright LiveKit, Inc.
+Licensed under the Apache License, Version 2.0.
+https://github.com/livekit/protocol
+
+WebRTC Adapter
+Copyright Google LLC and contributors.
+Licensed under the BSD 3-Clause License.
+https://github.com/webrtcHacks/adapter
+
+The complete BasePaint Live source is available at:
+https://github.com/XipleETH/basepaint-live

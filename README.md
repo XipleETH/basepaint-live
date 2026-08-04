@@ -4,6 +4,8 @@ BasePaint Live adds verified artist broadcasts directly to the BasePaint paint p
 
 Landing page: [basepaint-live.vercel.app](https://basepaint-live.vercel.app)
 
+Privacy policy: [basepaint-live.vercel.app/privacy.html](https://basepaint-live.vercel.app/privacy.html)
+
 ## What is working
 
 - Manifest V3 extension overlay inside `https://basepaint.xyz/paint`.
@@ -26,6 +28,18 @@ Landing page: [basepaint-live.vercel.app](https://basepaint-live.vercel.app)
 5. Open `https://basepaint.xyz/paint` and choose the **Streaming** tab beside Chat and Mentions.
 
 Reload the unpacked extension after rebuilding or pulling a new version.
+
+### Chrome Web Store package
+
+Build the store assets and the review ZIP from the repository root:
+
+```bash
+npm run build:store-assets
+npm run build:extension
+npm run build:store
+```
+
+The upload-ready ZIP is written to `store/package/`. Listing copy, reviewer notes, screenshots, and promotional artwork are kept in `store/`.
 
 ## Local development
 
@@ -75,8 +89,10 @@ api/            Vercel token, status, and health functions
 assets/         Landing-page image assets
 extension/      Content scripts, styles, viewers, and generated bundles
 scripts/        Extension bundle build script
+store/          Chrome Web Store package, listing copy, and artwork
 app.js          Landing-page behavior and live-room status
 index.html      Landing page
+privacy.html    Public Chrome Web Store privacy policy
 manifest.json   Chrome/Edge extension manifest
 styles.css      Landing-page styles
 ```

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06101c" />
+    <meta name="description" content="Privacy policy for the BasePaint Live Rooms browser extension." />
+    <link rel="canonical" href="https://basepaint-live.vercel.app/privacy.html" />
+    <title>Privacy Policy — BasePaint Live Rooms</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="policy-page">
+    <header class="site-header">
+      <nav class="shell nav" aria-label="Privacy navigation">
+        <a class="brand" href="/" aria-label="BasePaint Live home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span>BASEPAINT <b>/ LIVE</b></span>
+        </a>
+        <div class="policy-nav-links">
+          <a href="/">Home</a>
+          <a href="https://github.com/XipleETH/basepaint-live" target="_blank" rel="noreferrer">Source ↗</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="policy-main">
+      <div class="shell policy-shell">
+        <header class="policy-hero">
+          <p>BASEPAINT LIVE ROOMS / PRIVACY</p>
+          <h1>Privacy policy</h1>
+          <div><span>Effective August 4, 2026</span><span>Version 1.0</span></div>
+        </header>
+
+        <div class="policy-layout">
+          <aside class="policy-summary">
+            <strong>THE SHORT VERSION</strong>
+            <p>BasePaint Live only processes information needed to show verified artist rooms and deliver a live broadcast selected by the user.</p>
+            <ul>
+              <li>No advertising</li>
+              <li>No sale of user data</li>
+              <li>No seed phrase or private key</li>
+              <li>No media recording by BasePaint Live</li>
+            </ul>
+          </aside>
+
+          <article class="policy-content">
+            <section>
+              <span>01</span>
+              <div>
+                <h2>Who operates the extension</h2>
+                <p>BasePaint Live Rooms is an independent, open-source hackathon project maintained by XipleETH. It is not operated by or affiliated with BasePaint. Questions or privacy requests can be submitted through the project's <a href="https://github.com/XipleETH/basepaint-live/issues" target="_blank" rel="noreferrer">public support page</a>.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>02</span>
+              <div>
+                <h2>Single purpose</h2>
+                <p>The extension adds verified live artist rooms and per-artist saved-pixel layers to the BasePaint Paint page. It does not alter transactions, take custody of assets, access seed phrases, or provide financial services.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>03</span>
+              <div>
+                <h2>Information processed</h2>
+                <h3>Public wallet and artist information</h3>
+                <p>The extension reads the wallet already connected to BasePaint, public blockchain contribution data, and public ENS or Basename profile information. A broadcaster's public wallet address and display name are shown to viewers so the room can be attributed to the correct artist.</p>
+
+                <h3>Wallet signature</h3>
+                <p>When an artist chooses to go live, the wallet is asked to sign a short-lived BasePaint Live sign-in message. The signature, wallet address, room name, and timestamp are sent over HTTPS to the BasePaint Live API only to verify control of the wallet and BasePaint Brush ownership. BasePaint Live does not request or receive private keys or seed phrases, and does not store the signature in an application database.</p>
+
+                <h3>Camera, microphone, and screen</h3>
+                <p>These sources are accessed only after the user explicitly selects a sharing control and approves the browser prompt. Selected media is transmitted to room viewers through LiveKit using encrypted WebRTC transport. BasePaint Live does not record or store the media. The broadcaster can stop any source or end the room at any time.</p>
+
+                <h3>Operational information</h3>
+                <p>The service processes short-lived room tokens, room names, track state, and participant counts to operate live rooms. Hosting and realtime providers may process standard connection information such as IP address, user agent, timestamps, and diagnostic logs under their own policies.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>04</span>
+              <div>
+                <h2>Services involved</h2>
+                <p>BasePaint Live communicates only with services necessary for its disclosed purpose:</p>
+                <ul>
+                  <li><strong>BasePaint and its public GraphQL indexer</strong> for canvas, contribution, and artist data.</li>
+                  <li><strong>Base network public RPC</strong> to verify BasePaint Brush ownership.</li>
+                  <li><strong>web3.bio</strong> to resolve public ENS and Basename labels.</li>
+                  <li><strong>LiveKit Cloud</strong> to route realtime audio and video.</li>
+                  <li><strong>Vercel</strong> to host the website and issue short-lived room tokens.</li>
+                </ul>
+              </div>
+            </section>
+
+            <section>
+              <span>05</span>
+              <div>
+                <h2>Use, sharing, and retention</h2>
+                <p>Information is used only to provide and secure live artist rooms, saved-pixel views, and related reliability features. It is not sold, used for personalized advertising, used to determine creditworthiness, or shared for unrelated purposes.</p>
+                <p>BasePaint Live has no application database for wallet signatures or media. Room tokens expire, live media ends when tracks or rooms close, and in-memory interface state is discarded when the page closes. Infrastructure providers may retain limited operational logs according to their security and retention practices.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>06</span>
+              <div>
+                <h2>User controls and security</h2>
+                <p>Users control every sensitive action through the browser and wallet interfaces. They can reject a signature, deny media access, stop sharing, end a room, revoke browser permissions, or uninstall the extension. Personal or sensitive information is transmitted only through HTTPS, WSS, or encrypted WebRTC transport.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>07</span>
+              <div>
+                <h2>Chrome Web Store Limited Use</h2>
+                <p>The use of information received from Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements. BasePaint Live does not currently request access to Google account APIs.</p>
+              </div>
+            </section>
+
+            <section>
+              <span>08</span>
+              <div>
+                <h2>Changes to this policy</h2>
+                <p>If the extension's data practices change, this policy and the Chrome Web Store disclosures will be updated before the changed version is released. Material changes will also be disclosed in the extension interface or release notes when appropriate.</p>
+              </div>
+            </section>
+          </article>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <a class="brand brand-footer" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>BASEPAINT <b>/ LIVE</b></span></a>
+        <p>Independent hackathon project. BasePaint art is CC0.</p>
+        <div><a href="/">Home</a><a href="https://github.com/XipleETH/basepaint-live/issues" target="_blank" rel="noreferrer">Support ↗</a></div>
+        <small>Last updated August 4, 2026</small>
+      </div>
+    </footer>
+  </body>
+</html>
