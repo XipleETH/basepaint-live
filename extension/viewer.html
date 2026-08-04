@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BasePaint Live Viewer</title>
+    <link rel="stylesheet" href="viewer.css">
+  </head>
+  <body>
+    <header class="viewer-header">
+      <div class="viewer-identity">
+        <span class="live-dot"></span>
+        <div>
+          <small>BASEPAINT LIVE</small>
+          <strong id="viewer-artist">Artist screen</strong>
+        </div>
+      </div>
+      <div class="viewer-actions">
+        <span id="viewer-status">CONNECTING</span>
+        <button id="viewer-audio" type="button">AUDIO ON</button>
+      </div>
+    </header>
+    <main class="viewer-stage">
+      <video id="viewer-video" autoplay playsinline muted></video>
+      <div id="viewer-placeholder" class="viewer-placeholder">
+        <span class="live-dot"></span>
+        <strong>WAITING FOR ARTIST SCREEN</strong>
+        <small>The stream will appear automatically.</small>
+      </div>
+      <audio id="viewer-audio-track" autoplay></audio>
+    </main>
+    <footer class="viewer-footer">
+      <span id="viewer-room">ROOM</span>
+      <span>MOVE OR RESIZE THIS WINDOW TO ANOTHER MONITOR</span>
+    </footer>
+    <script src="config.js"></script>
+    <script src="viewer.bundle.js"></script>
+  </body>
+</html>

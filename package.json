@@ -1,0 +1,19 @@
+{
+  "name": "basepaint-live",
+  "private": true,
+  "version": "0.4.0",
+  "description": "BasePaint Live extension and realtime token API",
+  "scripts": {
+    "check": "node --check app.js && node --check serve.cjs && node --check extension/content.js && node --check extension/page-bridge.js && node --check extension/livekit-content.js && node --check extension/viewer.js && node --check scripts/build-extension.cjs && node --check api/livekit-token.js && node --check api/livekit-status.js",
+    "dev": "node serve.cjs 4173",
+    "build:extension": "node scripts/build-extension.cjs"
+  },
+  "dependencies": {
+    "livekit-client": "^2.21.0",
+    "livekit-server-sdk": "^2.17.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

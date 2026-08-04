@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0647d9" />
+    <meta name="description" content="Live artist rooms inside BasePaint. Watch screen, camera, audio, and saved pixels without leaving the daily canvas." />
+    <link rel="canonical" href="https://basepaint-live.vercel.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="BasePaint Live — See the artist behind every pixel" />
+    <meta property="og:description" content="A browser extension for live artist rooms directly inside BasePaint." />
+    <meta property="og:url" content="https://basepaint-live.vercel.app/" />
+    <meta property="og:image" content="https://basepaint-live.vercel.app/assets/basepaint-live-social.png" />
+    <meta property="og:image:width" content="1536" />
+    <meta property="og:image:height" content="1024" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <title>BasePaint Live — Live artist rooms inside BasePaint</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-grid" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <nav class="shell nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="BasePaint Live home">
+          <span class="brand-mark" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </span>
+          <span>BASEPAINT <b>/ LIVE</b></span>
+        </a>
+
+        <div class="nav-links" id="nav-links">
+          <a href="#features">Features</a>
+          <a href="#live">Live now</a>
+          <a href="#install">Install</a>
+        </div>
+
+        <div class="nav-actions">
+          <span class="network-status" id="global-status"><i></i><span>Checking rooms</span></span>
+          <a class="nav-github" href="https://github.com/XipleETH/basepaint-live" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open navigation">MENU</button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="shell hero-grid">
+          <div class="hero-copy reveal">
+            <p class="eyebrow"><span class="pulse-dot"></span> LIVE CREATOR ROOMS / ON BASE</p>
+            <h1>See the artist<br />behind every <em>pixel.</em></h1>
+            <p class="hero-lede">BasePaint Live adds screen share, selected-area capture, camera, audio, and artist layers directly to <strong>basepaint.xyz</strong>.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#install">Install the extension <span>↓</span></a>
+              <a class="button button-dark" href="https://basepaint.xyz/paint" target="_blank" rel="noreferrer">Open BasePaint <span>↗</span></a>
+            </div>
+            <ul class="hero-proof" aria-label="Product highlights">
+              <li><span>01</span> Stays inside BasePaint</li>
+              <li><span>02</span> Verified Brush holders</li>
+              <li><span>03</span> Built for the hackathon</li>
+            </ul>
+          </div>
+
+          <div class="hero-product reveal reveal-delay" aria-label="BasePaint Live extension preview">
+            <div class="product-shadow" aria-hidden="true"></div>
+            <div class="browser-window">
+              <div class="browser-bar">
+                <span class="browser-dots"><i></i><i></i><i></i></span>
+                <span class="browser-address">basepaint.xyz/paint</span>
+                <span class="secure-dot">●</span>
+              </div>
+              <div class="basepaint-nav">
+                <span class="bp-logo">BP</span>
+                <b>PAINT</b><span>MINT</span><span>VIEW</span><span>VOTE</span>
+                <strong>● LIVE</strong>
+              </div>
+              <div class="product-body" id="product-demo" data-mode="viewer">
+                <div class="canvas-demo">
+                  <div class="canvas-title"><span>DAY <b id="demo-day">—</b></span><strong>COSMIC GARDEN</strong></div>
+                  <canvas id="demo-canvas" width="64" height="64" aria-label="Animated pixel canvas demonstration"></canvas>
+                  <span class="saved-pixels-chip"><i></i> SAVED PIXELS ON</span>
+                  <div class="stream-window">
+                    <div class="stream-window-bar"><span><i></i> XIPLE.ETH / LIVE</span><b>↗</b></div>
+                    <div class="stream-art">
+                      <span class="cursor-pixel"></span>
+                      <strong>SHARING AREA</strong>
+                      <small>1080P · 30 FPS</small>
+                    </div>
+                  </div>
+                  <div class="creator-preview">
+                    <span class="creator-avatar">XE</span>
+                    <span><b>YOU ARE LIVE</b><small>Your canvas stays clear</small></span>
+                  </div>
+                </div>
+                <aside class="streaming-panel">
+                  <div class="panel-tabs"><span>CHAT</span><span>MENTIONS</span><b>STREAMING</b></div>
+                  <div class="go-live-row"><i></i><b>GO LIVE</b><span>+</span></div>
+                  <div class="artist-row artist-row-live">
+                    <span class="artist-avatar">XE</span>
+                    <span><b>xiple.eth</b><small>0xA002...C325</small></span>
+                    <strong>LIVE</strong>
+                  </div>
+                  <div class="artist-row">
+                    <span class="artist-avatar artist-avatar-yellow">0X</span>
+                    <span><b>0x5c67...266c</b><small>7,000 PX SAVED</small></span>
+                    <strong>+</strong>
+                  </div>
+                  <div class="panel-camera"><span>CAM</span><b>ARTIST CAMERA</b><small>Camera appears here</small></div>
+                  <div class="panel-chat"><i></i> ROOM CHAT · XIPLE.ETH</div>
+                </aside>
+              </div>
+            </div>
+            <div class="mode-switch" role="group" aria-label="Preview perspective">
+              <button class="mode-button mode-button-active" type="button" data-demo-mode="viewer">VIEWER</button>
+              <button class="mode-button" type="button" data-demo-mode="creator">STREAMER</button>
+              <span id="mode-caption">Viewer sees the live window over the canvas.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="signal-strip" aria-label="Product capabilities">
+        <div class="signal-track">
+          <span>SCREEN SHARE</span><i>✦</i><span>SELECTED AREA</span><i>✦</i><span>CAMERA + AUDIO</span><i>✦</i><span>SAVED PIXEL LAYERS</span><i>✦</i><span>LIVE ARTISTS FIRST</span><i>✦</i><span>BRUSH VERIFIED</span><i>✦</i>
+          <span aria-hidden="true">SCREEN SHARE</span><i aria-hidden="true">✦</i><span aria-hidden="true">SELECTED AREA</span><i aria-hidden="true">✦</i><span aria-hidden="true">CAMERA + AUDIO</span><i aria-hidden="true">✦</i>
+        </div>
+      </div>
+
+      <section class="why-section section-light" id="features">
+        <div class="shell">
+          <div class="section-heading reveal">
+            <p class="section-index">01 / THE IDEA</p>
+            <h2>BasePaint is collaborative.<br /><em>Watching it should be too.</em></h2>
+            <p>Keep the shared canvas at the center while opening a window into each artist's process.</p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card feature-card-wide reveal">
+              <div class="feature-number">01</div>
+              <div>
+                <p class="feature-kicker">BROADCAST</p>
+                <h3>Share only what matters.</h3>
+                <p>Choose a browser tab, application window, full screen, or draw a selected capture area. The viewer gets a readable stream without hiding BasePaint's tools.</p>
+              </div>
+              <div class="capture-options" aria-hidden="true">
+                <span class="capture-active"><i></i> AREA</span><span>WINDOW</span><span>SCREEN</span>
+                <div class="selection-box"><i></i><i></i><i></i><i></i><b>1280 × 720</b></div>
+              </div>
+            </article>
+
+            <article class="feature-card feature-card-blue reveal">
+              <div class="feature-number">02</div>
+              <p class="feature-kicker">CONTEXT</p>
+              <h3>One artist.<br />Every layer.</h3>
+              <p>Dim the shared canvas and isolate an artist's onchain pixels. Toggle them beneath the live stream whenever you need context.</p>
+              <div class="layer-stack" aria-hidden="true"><span>LIVE MEDIA</span><span>SAVED PX</span><span>BASEPAINT</span></div>
+            </article>
+
+            <article class="feature-card feature-card-dark reveal">
+              <div class="feature-number">03</div>
+              <p class="feature-kicker">TRUST</p>
+              <h3>Artists, not impostors.</h3>
+              <p>A short-lived wallet signature opens the transmitter room. The server verifies that wallet owns a BasePaint Brush before it can publish.</p>
+              <div class="verify-line"><span>0xA002...C325</span><strong>BRUSH VERIFIED ✓</strong></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="story-section section-dark">
+        <div class="shell story-grid">
+          <div class="story-image reveal">
+            <img src="assets/basepaint-live-social.png" alt="Pixel-art illustration of a live collaborative painting room" loading="lazy" />
+            <span>LIVE SIGNAL / BASE</span>
+          </div>
+          <div class="story-copy reveal">
+            <p class="section-index">02 / TWO SIDES, ONE CANVAS</p>
+            <h2>The streamer paints.<br />The audience gets closer.</h2>
+            <div class="role-list">
+              <article>
+                <span>STREAMER</span>
+                <h3>Your own stream never blocks your canvas.</h3>
+                <p>Keep a small movable preview, minimize it, or pop it into a separate window for a second monitor.</p>
+              </article>
+              <article>
+                <span>VIEWER</span>
+                <h3>Watch without leaving the daily artwork.</h3>
+                <p>Open the artist accordion, view camera and media, and move the live window anywhere over the canvas.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="live-section section-blue" id="live">
+        <div class="shell">
+          <div class="live-heading reveal">
+            <div>
+              <p class="section-index">03 / LIVE ROOMS</p>
+              <h2>Who is painting now?</h2>
+            </div>
+            <button class="refresh-button" id="refresh-live" type="button">REFRESH SIGNAL ↻</button>
+          </div>
+          <div class="live-summary" aria-live="polite">
+            <span class="live-count" id="live-count">—</span>
+            <span><b id="live-label">checking live artists</b><small id="live-viewers">Reading the LiveKit signal...</small></span>
+          </div>
+          <div class="room-grid" id="live-room-grid">
+            <article class="room-card room-card-loading">
+              <span class="room-avatar">··</span>
+              <div><small>LIVE ROOM</small><h3>Checking the signal...</h3><p>Verified broadcasts will appear here.</p></div>
+            </article>
+          </div>
+          <p class="live-note">Live artists appear first in the extension, even before they save their first pixel of the day.</p>
+        </div>
+      </section>
+
+      <section class="install-section section-light" id="install">
+        <div class="shell install-grid">
+          <div class="install-copy reveal">
+            <p class="section-index">04 / INSTALL THE PROTOTYPE</p>
+            <h2>Add live rooms<br />to BasePaint.</h2>
+            <p>This hackathon build is installed as an unpacked Chrome or Edge extension. No wallet key is stored by BasePaint Live.</p>
+            <div class="install-actions">
+              <a class="button button-primary" href="https://github.com/XipleETH/basepaint-live/archive/refs/heads/main.zip">Download source <span>↓</span></a>
+              <a class="text-link" href="https://github.com/XipleETH/basepaint-live" target="_blank" rel="noreferrer">View repository ↗</a>
+            </div>
+          </div>
+
+          <ol class="install-steps reveal">
+            <li>
+              <span>01</span>
+              <div><h3>Download and unzip</h3><p>Get the latest source from GitHub and keep the folder somewhere permanent.</p></div>
+            </li>
+            <li>
+              <span>02</span>
+              <div><h3>Load the extension</h3><p>Open <code>chrome://extensions</code>, enable Developer mode, choose <b>Load unpacked</b>, and select the repository root.</p></div>
+            </li>
+            <li>
+              <span>03</span>
+              <div><h3>Open Streaming</h3><p>Visit BasePaint's Paint page and choose the new <b>Streaming</b> tab beside Chat and Mentions.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div class="shell final-cta-inner reveal">
+          <div>
+            <p>BUILT IN PUBLIC FOR THE BASEPAINT HACKATHON</p>
+            <h2>Paint live.<br />Stay on canvas.</h2>
+          </div>
+          <div class="final-actions">
+            <a class="button button-yellow" href="https://basepaint.xyz/paint" target="_blank" rel="noreferrer">Start painting <span>↗</span></a>
+            <a class="button button-outline" href="https://github.com/XipleETH/basepaint-live" target="_blank" rel="noreferrer">Build with us <span>↗</span></a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <a class="brand brand-footer" href="#top">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span>BASEPAINT <b>/ LIVE</b></span>
+        </a>
+        <p>Independent hackathon project. BasePaint art is CC0.</p>
+        <div><a href="https://basepaint.xyz" target="_blank" rel="noreferrer">BasePaint ↗</a><a href="https://basepaint.xyz/hack" target="_blank" rel="noreferrer">Hackathon ↗</a><a href="https://github.com/XipleETH/basepaint-live" target="_blank" rel="noreferrer">GitHub ↗</a></div>
+        <small>© <span id="year"></span> XipleETH</small>
+      </div>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

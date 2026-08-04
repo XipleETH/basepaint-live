@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "BasePaint Live Rooms",
+  "version": "0.4.9",
+  "description": "Artist rooms, saved-pixel overlays, camera, screen share, and room chat on top of BasePaint.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://basepaint.xyz/*",
+    "https://graphql.basepaint.xyz/*",
+    "https://api.web3.bio/*",
+    "https://basepaint-live.vercel.app/*",
+    "https://*.livekit.cloud/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://basepaint.xyz/paint*"],
+      "js": ["extension/config.js", "extension/livekit-content.bundle.js", "extension/content.js"],
+      "css": ["extension/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "extension/page-bridge.bundle.js",
+        "extension/viewer.html",
+        "extension/viewer.css",
+        "extension/viewer.bundle.js",
+        "extension/config.js"
+      ],
+      "matches": ["https://basepaint.xyz/*"]
+    }
+  ],
+  "action": {
+    "default_title": "BasePaint Live Rooms"
+  }
+}
