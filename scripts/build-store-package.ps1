@@ -4,14 +4,17 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $packageDirectory = Join-Path $projectRoot "store\package"
-$zipPath = Join-Path $packageDirectory "basepaint-live-rooms-v0.5.0.zip"
+$zipPath = Join-Path $packageDirectory "basepaint-live-rooms-v0.6.0.zip"
 
 $runtimeFiles = @(
   "manifest.json",
+  "extension/background.js",
   "extension/config.js",
   "extension/content.css",
   "extension/content.js",
   "extension/livekit-content.bundle.js",
+  "extension/offscreen.bundle.js",
+  "extension/offscreen.html",
   "extension/page-bridge.bundle.js",
   "extension/viewer.bundle.js",
   "extension/viewer.css",

@@ -32,14 +32,19 @@
     search: "",
     roomMessages: [...baseMessages],
     profileCache: new Map(),
-    micEnabled: true,
+    micEnabled: false,
     cameraEnabled: false,
     screenEnabled: false,
     screenMode: "",
     remoteCameraActive: false,
+    remoteMicrophoneActive: false,
+    remoteScreenAudioActive: false,
     remoteScreenActive: false,
     remoteCameraSubscribed: false,
+    remoteMicrophoneSubscribed: false,
+    remoteScreenAudioSubscribed: false,
     remoteScreenSubscribed: false,
+    audioOutputEnabled: true,
     remoteParticipantCount: 0,
     liveConnected: false,
     liveRoom: "",
@@ -48,10 +53,12 @@
     liveSessionId: 0,
     liveConnectingKey: "",
     liveConnectPromise: null,
+    mediaCredentials: null,
+    mediaConnected: false,
+    mediaBridgeReady: false,
     pendingSignature: null,
     savedPixelsVisible: true,
     goLiveOpen: false,
-    cameraStream: null,
     screenStream: null,
     root: null,
     pixelOverlay: null,
@@ -76,6 +83,15 @@
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+  }
+
+  function friendlyMediaError(error, operation = "") {
+    const message = String(error?.message || error || "Media permission failed.");
+    if (!/(permission|notallowed|denied)/i.test(message)) return message;
+    if (operation.includes("camera")) return "Allow camera access for the BasePaint Live extension in browser permissions, then try again.";
+    if (operation.includes("mic")) return "Allow microphone access for the BasePaint Live extension in browser permissions, then try again.";
+    if (operation.includes("screen") || operation.includes("region")) return "Screen sharing was cancelled or blocked by the browser.";
+    return "Allow camera and microphone access for the BasePaint Live extension, then try again.";
   }
 
   function shortAddress(address) {
@@ -104,8 +120,15 @@
   }
 
   function cameraIsOn() {
-    if (liveConfigured()) return isTransmitter() ? state.cameraEnabled : state.remoteCameraActive;
-    return Boolean(state.cameraStream);
+    return isTransmitter() ? state.cameraEnabled : state.remoteCameraActive;
+  }
+
+  function microphoneIsOn() {
+    return isTransmitter() ? state.micEnabled : state.remoteMicrophoneActive;
+  }
+
+  function remoteAudioIsOn() {
+    return state.remoteMicrophoneActive || state.remoteScreenAudioActive;
   }
 
   function screenIsOn() {
@@ -247,17 +270,21 @@
     const previousSessionId = state.liveSessionId;
     state.liveSessionId += 1;
     if (previousRoom) window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-disconnect", room: previousRoom, sessionId: previousSessionId }, "*");
-    state.cameraStream?.getTracks().forEach((track) => track.stop());
+    const mediaDisconnect = globalThis.chrome?.runtime?.sendMessage?.({ target: "background", type: "bpl-media-disconnect", room: previousRoom, sessionId: previousSessionId });
+    mediaDisconnect?.catch(() => {});
     state.screenStream?.getTracks().forEach((track) => track.stop());
-    state.cameraStream = null;
     state.screenStream = null;
-    state.micEnabled = true;
+    state.micEnabled = false;
     state.cameraEnabled = false;
     state.screenEnabled = false;
     state.screenMode = "";
     state.remoteCameraActive = false;
+    state.remoteMicrophoneActive = false;
+    state.remoteScreenAudioActive = false;
     state.remoteScreenActive = false;
     state.remoteCameraSubscribed = false;
+    state.remoteMicrophoneSubscribed = false;
+    state.remoteScreenAudioSubscribed = false;
     state.remoteScreenSubscribed = false;
     state.remoteParticipantCount = 0;
     state.liveConnected = false;
@@ -266,6 +293,8 @@
     state.livekitError = "";
     state.liveConnectingKey = "";
     state.liveConnectPromise = null;
+    state.mediaCredentials = null;
+    state.mediaConnected = false;
     state.view = "pixels";
     closeRegionSelector(false);
     if (state.mediaVideo) state.mediaVideo.srcObject = null;
@@ -284,7 +313,7 @@
       ? state.profileCache.get(normalized)?.name || shortAddress(normalized)
       : "";
 
-    if (previousAccount !== normalized && (previousRole === "transmitter" || state.cameraStream || state.screenStream)) {
+    if (previousAccount !== normalized && (previousRole === "transmitter" || state.screenStream)) {
       state.goLiveOpen = false;
       stopLocalMedia();
     }
@@ -341,13 +370,24 @@
       }
       if (data.type === "bpl-livekit-disconnected") {
         if (!data.room || data.room === state.liveRoom) {
+          if (state.liveRole === "transmitter") {
+            const disconnect = globalThis.chrome?.runtime?.sendMessage?.({ target: "background", type: "bpl-media-disconnect", room: state.liveRoom, sessionId: state.liveSessionId });
+            disconnect?.catch(() => {});
+          }
           state.liveConnected = false;
+          state.mediaConnected = false;
+          state.mediaCredentials = null;
           state.cameraEnabled = false;
+          state.micEnabled = false;
           state.screenEnabled = false;
           state.screenMode = "";
           state.remoteCameraActive = false;
+          state.remoteMicrophoneActive = false;
+          state.remoteScreenAudioActive = false;
           state.remoteScreenActive = false;
           state.remoteCameraSubscribed = false;
+          state.remoteMicrophoneSubscribed = false;
+          state.remoteScreenAudioSubscribed = false;
           state.remoteScreenSubscribed = false;
           state.remoteParticipantCount = 0;
           state.liveRoom = "";
@@ -362,15 +402,31 @@
         const source = String(data.source || "");
         const active = Boolean(data.active);
         const remote = Boolean(data.remote);
+        const participantId = String(data.participantId || "");
         const observerTrack = remote && state.liveRole === "observer" && !isTransmitter();
         const transmitterTrack = !remote && state.liveRole === "transmitter" && isTransmitter();
-        if (!observerTrack && !transmitterTrack) return;
+        const transmitterMediaTrack = remote
+          && state.liveRole === "transmitter"
+          && isTransmitter()
+          && participantId.startsWith("artist-media-");
+        if (!observerTrack && !transmitterTrack && !transmitterMediaTrack) return;
+        if ((transmitterTrack || transmitterMediaTrack) && active) state.livekitError = "";
         if (source === "camera") {
           if (observerTrack) {
             state.remoteCameraActive = active;
             state.remoteCameraSubscribed = active;
           }
-          else state.cameraEnabled = active;
+          else if (transmitterTrack || transmitterMediaTrack) state.cameraEnabled = active;
+        }
+        if (source === "microphone") {
+          if (observerTrack) {
+            state.remoteMicrophoneActive = active;
+            state.remoteMicrophoneSubscribed = active;
+          } else if (transmitterTrack || transmitterMediaTrack) state.micEnabled = active;
+        }
+        if (source === "screen_share_audio" && observerTrack) {
+          state.remoteScreenAudioActive = active;
+          state.remoteScreenAudioSubscribed = active;
         }
         if (source === "screen_share") {
           if (observerTrack) {
@@ -396,16 +452,28 @@
         const nextScreenSubscribed = Boolean(data.remoteScreenSubscribed);
         const nextCameraActive = Boolean(data.remoteCameraPublished);
         const nextCameraSubscribed = Boolean(data.remoteCameraSubscribed);
+        const nextMicrophoneActive = Boolean(data.remoteMicrophonePublished);
+        const nextMicrophoneSubscribed = Boolean(data.remoteMicrophoneSubscribed);
+        const nextScreenAudioActive = Boolean(data.remoteScreenAudioPublished);
+        const nextScreenAudioSubscribed = Boolean(data.remoteScreenAudioSubscribed);
         const changed = state.remoteParticipantCount !== nextParticipantCount
           || state.remoteScreenActive !== nextScreenActive
           || state.remoteScreenSubscribed !== nextScreenSubscribed
           || state.remoteCameraActive !== nextCameraActive
-          || state.remoteCameraSubscribed !== nextCameraSubscribed;
+          || state.remoteCameraSubscribed !== nextCameraSubscribed
+          || state.remoteMicrophoneActive !== nextMicrophoneActive
+          || state.remoteMicrophoneSubscribed !== nextMicrophoneSubscribed
+          || state.remoteScreenAudioActive !== nextScreenAudioActive
+          || state.remoteScreenAudioSubscribed !== nextScreenAudioSubscribed;
         state.remoteParticipantCount = nextParticipantCount;
         state.remoteScreenActive = nextScreenActive;
         state.remoteScreenSubscribed = nextScreenSubscribed;
         state.remoteCameraActive = nextCameraActive;
         state.remoteCameraSubscribed = nextCameraSubscribed;
+        state.remoteMicrophoneActive = nextMicrophoneActive;
+        state.remoteMicrophoneSubscribed = nextMicrophoneSubscribed;
+        state.remoteScreenAudioActive = nextScreenAudioActive;
+        state.remoteScreenAudioSubscribed = nextScreenAudioSubscribed;
         if (state.remoteScreenActive) state.view = "screen";
         else if (state.view === "screen") state.view = "pixels";
         syncCanvasModes();
@@ -434,15 +502,24 @@
         renderSearchPanel();
         return;
       }
+      if (data.type === "bpl-livekit-audio-blocked") {
+        if (state.liveRole === "observer" && !isTransmitter()) {
+          state.audioOutputEnabled = false;
+          renderSearchPanel();
+        }
+        return;
+      }
       if (data.type === "bpl-livekit-error") {
-        state.livekitError = data.error || "LiveKit connection failed.";
-        if (String(data.operation).includes("camera")) state.cameraEnabled = false;
-        if (String(data.operation).includes("screen") || String(data.operation).includes("region")) {
+        const operation = String(data.operation || "");
+        state.livekitError = friendlyMediaError(data.error || "LiveKit connection failed.", operation);
+        if (operation.includes("camera")) state.cameraEnabled = false;
+        if (operation.includes("mic")) state.micEnabled = false;
+        if (operation.includes("screen") || operation.includes("region")) {
           state.screenEnabled = false;
           state.screenMode = "";
           state.view = "pixels";
         }
-        if (String(data.operation).includes("region")) closeRegionSelector(false);
+        if (operation.includes("region")) closeRegionSelector(false);
         syncCanvasModes();
         renderSearchPanel();
       }
@@ -456,6 +533,66 @@
     } else {
       requestConnectedAccount();
     }
+  }
+
+  function bindExtensionMediaBridge() {
+    if (state.mediaBridgeReady || !globalThis.chrome?.runtime?.onMessage) return;
+    state.mediaBridgeReady = true;
+    globalThis.chrome.runtime.onMessage.addListener((data) => {
+      if (data?.target !== "content" || !String(data.type || "").startsWith("bpl-media-")) return;
+      if (data.sessionId && Number(data.sessionId) !== state.liveSessionId) return;
+      if (data.room && state.liveRoom && data.room !== state.liveRoom) return;
+
+      if (data.type === "bpl-media-connected") {
+        state.mediaConnected = true;
+        state.cameraEnabled = Boolean(data.cameraEnabled);
+        state.micEnabled = Boolean(data.micEnabled);
+        state.livekitError = "";
+      } else if (data.type === "bpl-media-track") {
+        state.mediaConnected = true;
+        const source = String(data.source || "");
+        if (source === "camera") state.cameraEnabled = Boolean(data.active);
+        if (source === "microphone") state.micEnabled = Boolean(data.active);
+        if (data.active) state.livekitError = "";
+      } else if (data.type === "bpl-media-disconnected") {
+        state.mediaConnected = false;
+        state.cameraEnabled = false;
+        state.micEnabled = false;
+      } else if (data.type === "bpl-media-error") {
+        const operation = String(data.operation || "");
+        state.cameraEnabled = Boolean(data.cameraEnabled);
+        state.micEnabled = Boolean(data.micEnabled);
+        state.livekitError = friendlyMediaError(data.error, operation);
+      }
+      syncCanvasModes();
+      renderSearchPanel();
+    });
+  }
+
+  async function sendExtensionMediaCommand(type, payload = {}) {
+    if (!globalThis.chrome?.runtime?.sendMessage) throw new Error("Extension media capture is unavailable.");
+    const result = await globalThis.chrome.runtime.sendMessage({
+      target: "background",
+      type,
+      room: state.liveRoom,
+      sessionId: state.liveSessionId,
+      ...payload,
+    });
+    if (!result?.ok) throw new Error(result?.error || "Extension media command failed.");
+    state.mediaConnected = !result.idle;
+    state.cameraEnabled = Boolean(result.cameraEnabled);
+    state.micEnabled = Boolean(result.micEnabled);
+    return result;
+  }
+
+  async function ensureExtensionMediaSession() {
+    if (state.mediaConnected) return true;
+    const credentials = state.mediaCredentials;
+    if (!credentials?.participantToken || credentials.room !== state.liveRoom) {
+      throw new Error("The Live API needs the camera-token update before camera and microphone can start.");
+    }
+    await sendExtensionMediaCommand("bpl-media-connect", credentials);
+    return true;
   }
 
   function signedMessage(address, room, timestamp) {
@@ -515,16 +652,31 @@
     state.liveConnected = false;
     state.liveRoom = room;
     state.liveRole = role;
+    state.mediaCredentials = null;
+    state.mediaConnected = false;
     state.livekitError = "";
     state.remoteCameraActive = false;
+    state.remoteMicrophoneActive = false;
+    state.remoteScreenAudioActive = false;
     state.remoteScreenActive = false;
     state.remoteCameraSubscribed = false;
+    state.remoteMicrophoneSubscribed = false;
+    state.remoteScreenAudioSubscribed = false;
     state.remoteScreenSubscribed = false;
     state.remoteParticipantCount = 0;
 
     const connectionPromise = (async () => {
       const token = await requestLiveToken(accountId, role);
       if (state.liveSessionId !== sessionId) return false;
+      if (role === "transmitter" && token.mediaParticipantToken) {
+        state.mediaCredentials = {
+          room,
+          serverUrl: token.serverUrl,
+          participantToken: token.mediaParticipantToken,
+          identity: token.mediaIdentity || "",
+          sessionId,
+        };
+      }
       window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-connect", ...token, role, sessionId }, "*");
       return true;
     })();
@@ -547,9 +699,24 @@
     }
   }
 
+  async function waitForLiveSession(room, role, timeoutMs = 15000) {
+    const sessionId = state.liveSessionId;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (state.liveSessionId !== sessionId || state.liveRoom !== room || state.liveRole !== role) {
+        throw new Error("The live room changed while connecting.");
+      }
+      if (state.liveConnected) return true;
+      if (state.livekitError) throw new Error(state.livekitError);
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    }
+    throw new Error("LiveKit room connection timed out.");
+  }
+
   function requestLiveReattach() {
     if (!liveConfigured() || !state.liveRoom) return;
     window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-reattach", room: state.liveRoom, role: state.liveRole, sessionId: state.liveSessionId }, "*");
+    window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-audio-output", room: state.liveRoom, role: state.liveRole, sessionId: state.liveSessionId, enabled: state.audioOutputEnabled }, "*");
   }
 
   function findBaseCanvas() {
@@ -1031,36 +1198,39 @@
     return state.artists.filter((artist) => `${artist.label} ${artist.ensName} ${artist.accountId}`.toLowerCase().includes(query));
   }
 
-  function artistMenuMarkup(artist) {
-    const messages = state.roomMessages.map((message) => `<div class="bpl-chat-message"><strong>${escapeHtml(message.author)}</strong> ${escapeHtml(message.body)}</div>`).join("");
-    return `<div class="bpl-artist-menu" data-live-menu="${escapeHtml(artist.accountId)}">
-      <div class="bpl-menu-head"><span class="bpl-artist-avatar">${escapeHtml(initials(artist))}</span><div><strong class="bpl-detail-name">${escapeHtml(artist.label)}</strong><small class="bpl-detail-address">${escapeHtml(shortAddress(artist.accountId))} · ${formatNumber(artist.pixelsCount)} px saved</small></div><span class="bpl-live-dot"></span></div>
-      <div class="bpl-view-tabs"><button class="bpl-view-tab${state.view === "pixels" ? " is-active" : ""}" data-live-view="pixels" type="button">SAVED PX</button><button class="bpl-view-tab${state.view === "camera" ? " is-active" : ""}" data-live-view="camera" type="button">CAMERA</button><button class="bpl-view-tab${state.view === "screen" ? " is-active" : ""}" data-live-view="screen" type="button">SCREEN</button></div>
-      <div class="bpl-device-row"><button class="bpl-device-button${state.cameraStream ? " is-on" : ""}" data-live-camera type="button">${state.cameraStream ? "Camera on" : "Enable camera"}</button><button class="bpl-device-button${state.screenStream ? " is-on" : ""}" data-live-screen type="button">${state.screenStream ? "Screen on" : "Share screen"}</button></div>
-      <div class="bpl-room-chat"><div class="bpl-chat-label"><span class="bpl-live-dot"></span> ROOM CHAT · ${escapeHtml(artist.label)}</div>${messages}</div>
-      <form class="bpl-chat-composer"><input type="text" maxlength="180" placeholder="Say something to the room..." autocomplete="off"><button type="submit" aria-label="Send">↑</button></form>
-    </div>`;
-  }
-
   function artistMenuMarkupV2(artist) {
     const messages = state.roomMessages.map((message) => `<div class="bpl-chat-message"><strong>${escapeHtml(message.author)}</strong> ${escapeHtml(message.body)}</div>`).join("");
     const cameraOn = cameraIsOn();
+    const micOn = microphoneIsOn();
+    const remoteAudioOn = remoteAudioIsOn();
     const streamStatus = isTransmitter()
-      ? screenIsOn() ? "SCREEN IS LIVE" : "READY TO STREAM"
+      ? screenIsOn()
+        ? "SCREEN IS LIVE"
+        : cameraOn && micOn
+          ? "CAMERA + MIC LIVE"
+          : cameraOn
+            ? "CAMERA LIVE"
+            : micOn ? "MIC LIVE" : "READY TO STREAM"
       : !state.liveConnected
         ? "JOINING ARTIST ROOM"
         : state.remoteScreenSubscribed
           ? "SCREEN LIVE"
           : state.remoteScreenActive
             ? "SCREEN FOUND · CONNECTING VIDEO"
-            : state.remoteParticipantCount > 0 ? "ARTIST ONLINE · SCREEN OFF" : "WAITING FOR ARTIST";
-    const streamStatusLive = screenIsOn() || state.remoteScreenSubscribed;
+            : cameraOn && micOn
+              ? "CAMERA + MIC LIVE"
+              : cameraOn
+                ? "CAMERA LIVE"
+                : micOn
+                  ? "MIC LIVE"
+                  : state.remoteParticipantCount > 0 ? "ARTIST ONLINE · MEDIA OFF" : "WAITING FOR ARTIST";
+    const streamStatusLive = screenIsOn() || state.remoteScreenSubscribed || cameraOn || micOn;
     const cameraMarkup = cameraOn
-      ? '<div class="bpl-inline-camera is-on"><video id="bpl-inline-camera" autoplay playsinline muted></video><span class="bpl-inline-camera-label"><span class="bpl-live-dot"></span> CAMERA + MIC</span></div>'
+      ? `<div class="bpl-inline-camera is-on"><video id="bpl-inline-camera" autoplay playsinline muted></video><span class="bpl-inline-camera-label"><span class="bpl-live-dot"></span> CAMERA <b class="bpl-camera-mic${micOn ? " is-on" : ""}">${micOn ? "MIC ON" : "MIC OFF"}</b></span></div>`
       : `<div class="bpl-inline-camera"><div class="bpl-camera-placeholder"><span class="bpl-artist-avatar">${escapeHtml(initials(artist))}</span><span>Camera is off</span></div></div>`;
     const deviceMarkup = isTransmitter()
-      ? `<div class="bpl-device-row"><button class="bpl-device-button${cameraOn ? " is-on" : ""}" data-live-camera type="button">${cameraOn ? "Camera on" : "Enable camera"}</button><button class="bpl-device-button${cameraOn && state.micEnabled ? " is-on" : ""}" data-live-mic type="button">${state.micEnabled ? "Mic on" : "Mic off"}</button></div>`
-      : `<div class="bpl-device-row bpl-observer-device"><span>${cameraOn ? "ARTIST CAMERA LIVE" : "CAMERA OFF"}</span></div>`;
+      ? `<div class="bpl-device-row"><button class="bpl-device-button${cameraOn ? " is-on" : ""}" data-live-camera type="button">${cameraOn ? "Camera on" : "Enable camera"}</button><button class="bpl-device-button${micOn ? " is-on" : ""}" data-live-mic type="button">${micOn ? "Mic on" : "Enable mic"}</button></div>`
+      : `<div class="bpl-device-row bpl-observer-device"><span>${cameraOn ? "ARTIST CAMERA LIVE" : "CAMERA OFF"}</span><button class="bpl-device-button${state.audioOutputEnabled && remoteAudioOn ? " is-on" : ""}" data-live-audio-output type="button"${remoteAudioOn ? "" : " disabled"}>${remoteAudioOn ? state.audioOutputEnabled ? "Audio on" : "Audio off" : "MIC OFF"}</button></div>`;
     return `<div class="bpl-artist-menu" data-live-menu="${escapeHtml(artist.accountId)}">
       <div class="bpl-stream-state${streamStatusLive ? " is-live" : ""}"><span class="bpl-live-dot"></span>${escapeHtml(streamStatus)}</div>
       ${cameraMarkup}
@@ -1079,11 +1249,12 @@
     const artists = filteredArtists();
     const transmitter = isTransmitter();
     const cameraOn = transmitter ? cameraIsOn() : false;
+    const micOn = transmitter ? microphoneIsOn() : false;
     const screenOn = transmitter ? screenIsOn() : false;
     const regionOn = transmitter && screenOn && state.screenMode === "region";
     const liveMenu = state.goLiveOpen
       ? transmitter
-        ? `<div class="bpl-go-live-menu"><button class="bpl-go-live-action${cameraOn ? " is-on" : ""}" data-live-camera type="button"><span>${cameraOn ? "●" : "○"}</span> ${cameraOn ? "Camera on" : "Enable camera"}</button><button class="bpl-go-live-action${screenOn ? " is-on" : ""}" data-live-screen type="button"><span>${screenOn ? "■" : "□"}</span> ${screenOn ? "Stop share" : "Share screen"}</button><button class="bpl-go-live-action${regionOn ? " is-on" : ""}" data-live-region type="button"><span>${regionOn ? "▣" : "▢"}</span> ${regionOn ? "Area on" : screenOn ? "Switch to area" : "Share area"}</button>${state.livekitError ? `<div class="bpl-live-error">${escapeHtml(state.livekitError)}</div>` : ""}</div>`
+        ? `<div class="bpl-go-live-menu"><button class="bpl-go-live-action${cameraOn ? " is-on" : ""}" data-live-camera type="button"><span>${cameraOn ? "●" : "○"}</span> ${cameraOn ? "Camera on" : "Enable camera"}</button><button class="bpl-go-live-action${micOn ? " is-on" : ""}" data-live-mic type="button"><span>${micOn ? "●" : "○"}</span> ${micOn ? "Mic on" : "Enable mic"}</button><button class="bpl-go-live-action${screenOn ? " is-on" : ""}" data-live-screen type="button"><span>${screenOn ? "■" : "□"}</span> ${screenOn ? "Stop share" : "Share screen"}</button><button class="bpl-go-live-action${regionOn ? " is-on" : ""}" data-live-region type="button"><span>${regionOn ? "▣" : "▢"}</span> ${regionOn ? "Area on" : screenOn ? "Switch to area" : "Share area"}</button>${state.livekitError ? `<div class="bpl-live-error">${escapeHtml(state.livekitError)}</div>` : ""}</div>`
         : '<div class="bpl-go-live-menu bpl-wallet-required"><span>Connect your BasePaint wallet first to transmit as the connected artist.</span></div>'
       : "";
     const listMarkup = artists.length ? artists.map((item) => {
@@ -1109,7 +1280,6 @@
       ${state.artists.length ? "" : '<div class="bpl-list-state">Loading today\'s artists...</div>'}
     </div>`;
     state.inlineVideo = $("#bpl-inline-camera", root);
-    if (state.inlineVideo && state.cameraStream) state.inlineVideo.srcObject = state.cameraStream;
     requestLiveReattach();
     const nextList = $(".bpl-artist-list", root);
     if (nextList) {
@@ -1126,8 +1296,12 @@
     state.selectedPixels = [];
     state.selectedStrokes = 0;
     state.remoteCameraActive = false;
+    state.remoteMicrophoneActive = false;
+    state.remoteScreenAudioActive = false;
     state.remoteScreenActive = false;
     state.remoteCameraSubscribed = false;
+    state.remoteMicrophoneSubscribed = false;
+    state.remoteScreenAudioSubscribed = false;
     state.remoteScreenSubscribed = false;
     state.remoteParticipantCount = 0;
     state.view = "pixels";
@@ -1155,54 +1329,66 @@
   async function toggleCamera() {
     if (!ensureTransmitter()) return;
     if (liveConfigured()) {
+      const previousCameraEnabled = state.cameraEnabled;
+      const enabled = !state.cameraEnabled;
       try {
         await ensureLiveSession(state.connectedAccount, "transmitter");
-        state.cameraEnabled = !state.cameraEnabled;
+        await waitForLiveSession(state.liveRoom, "transmitter");
+        await ensureExtensionMediaSession();
+        await sendExtensionMediaCommand("bpl-media-camera", { enabled });
         state.livekitError = "";
-        window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-camera", room: state.liveRoom, role: state.liveRole, sessionId: state.liveSessionId, enabled: state.cameraEnabled }, "*");
         syncCanvasModes();
         renderSearchPanel();
       } catch (error) {
-        state.livekitError = error.message || "Unable to start the camera.";
+        state.cameraEnabled = previousCameraEnabled;
+        state.livekitError = friendlyMediaError(error, "camera");
         renderSearchPanel();
       }
       return;
     }
-    if (state.cameraStream) {
-      state.cameraStream.getTracks().forEach((track) => track.stop());
-      state.cameraStream = null;
-      state.micEnabled = true;
-      syncCanvasModes();
-      renderSearchPanel();
-      return;
-    }
-    try {
-      state.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      state.micEnabled = true;
-      syncCanvasModes();
-      renderSearchPanel();
-    } catch {
-      renderSearchPanel();
-    }
+    state.livekitError = "Camera streaming requires the Live API.";
+    renderSearchPanel();
   }
 
   async function toggleMic() {
     if (liveConfigured()) {
       if (!ensureTransmitter()) return;
+      const previousMicEnabled = state.micEnabled;
+      const enabled = !state.micEnabled;
       try {
         await ensureLiveSession(state.connectedAccount, "transmitter");
-        state.micEnabled = !state.micEnabled;
-        window.postMessage({ source: "basepaint-live-rooms", type: "bpl-livekit-mic", room: state.liveRoom, role: state.liveRole, sessionId: state.liveSessionId, enabled: state.micEnabled }, "*");
+        await waitForLiveSession(state.liveRoom, "transmitter");
+        await ensureExtensionMediaSession();
+        await sendExtensionMediaCommand("bpl-media-mic", { enabled });
+        state.livekitError = "";
+        syncCanvasModes();
         renderSearchPanel();
       } catch (error) {
-        state.livekitError = error.message || "Unable to change the microphone.";
+        state.micEnabled = previousMicEnabled;
+        state.livekitError = friendlyMediaError(error, "mic");
         renderSearchPanel();
       }
       return;
     }
-    if (!state.cameraStream) return;
-    state.micEnabled = !state.micEnabled;
-    state.cameraStream.getAudioTracks().forEach((track) => { track.enabled = state.micEnabled; });
+    state.livekitError = "Microphone streaming requires the Live API.";
+    renderSearchPanel();
+  }
+
+  function toggleAudioOutput() {
+    if (isTransmitter() || !liveConfigured() || !state.liveRoom) return;
+    state.audioOutputEnabled = !state.audioOutputEnabled;
+    document.querySelectorAll(".bpl-live-audio-track").forEach((element) => {
+      element.muted = !state.audioOutputEnabled;
+      if (state.audioOutputEnabled) element.play?.().catch(() => {});
+    });
+    window.postMessage({
+      source: "basepaint-live-rooms",
+      type: "bpl-livekit-audio-output",
+      room: state.liveRoom,
+      role: state.liveRole,
+      sessionId: state.liveSessionId,
+      enabled: state.audioOutputEnabled,
+    }, "*");
     renderSearchPanel();
   }
 
@@ -1272,9 +1458,15 @@
     state.liveRole = "";
     state.liveConnectPromise = null;
     state.liveConnectingKey = "";
+    state.mediaCredentials = null;
+    state.mediaConnected = false;
     state.remoteCameraActive = false;
+    state.remoteMicrophoneActive = false;
+    state.remoteScreenAudioActive = false;
     state.remoteScreenActive = false;
     state.remoteCameraSubscribed = false;
+    state.remoteMicrophoneSubscribed = false;
+    state.remoteScreenAudioSubscribed = false;
     state.remoteScreenSubscribed = false;
     state.remoteParticipantCount = 0;
     state.screenMode = "";
@@ -1310,6 +1502,7 @@
       if (viewButton) return setView(viewButton.dataset.liveView);
       if (event.target.closest("[data-live-camera]")) return toggleCamera();
       if (event.target.closest("[data-live-mic]")) return toggleMic();
+      if (event.target.closest("[data-live-audio-output]")) return toggleAudioOutput();
       if (event.target.closest("[data-live-screen]")) return toggleScreen();
       if (event.target.closest("[data-live-region]")) return toggleRegionShare();
     });
@@ -1368,6 +1561,7 @@
   function boot() {
     createCanvasOverlay();
     bindWalletBridge();
+    bindExtensionMediaBridge();
     bindSearchTab();
     ensureSearchPanel();
     loadDayData();
@@ -1377,6 +1571,11 @@
     setInterval(loadLiveArtists, 5000);
     setInterval(() => { if (state.selectedArtist) loadArtistPixels(); }, 5000);
     setInterval(syncCanvasOverlay, 1000);
+    window.addEventListener("pagehide", () => {
+      if (!isTransmitter() || (!state.mediaConnected && !state.cameraEnabled && !state.micEnabled)) return;
+      const disconnect = globalThis.chrome?.runtime?.sendMessage?.({ target: "background", type: "bpl-media-disconnect", room: state.liveRoom, sessionId: state.liveSessionId });
+      disconnect?.catch(() => {});
+    }, { once: true });
   }
 
   boot();

@@ -10,9 +10,9 @@ Privacy policy: [basepaint-live.vercel.app/privacy.html](https://basepaint-live.
 
 - Manifest V3 extension overlay inside `https://basepaint.xyz/paint`.
 - Screen, window, full-display, and selected-area capture.
-- Camera and microphone publishing through LiveKit.
+- Camera and microphone publishing through a permission-scoped offscreen extension document and LiveKit.
 - Viewer/streamer separation: a streamer does not cover their own canvas with the outgoing feed.
-- Movable viewer window plus a pop-out viewer for another monitor.
+- Movable viewer window plus a pop-out viewer that combines screen and camera picture-in-picture on another monitor.
 - Per-wallet saved-pixel overlays decoded from BasePaint's public indexer.
 - Live artists sorted before onchain contributors, including artists who have not saved a pixel that day.
 - Transmitter wallet signature verification.
@@ -59,7 +59,7 @@ npm run check
 npm run build:extension
 ```
 
-`npm run build:extension` regenerates the three browser bundles used by `manifest.json`.
+`npm run build:extension` regenerates the four browser bundles used by `manifest.json`.
 
 ## Realtime backend
 
@@ -81,6 +81,8 @@ SUPABASE_PUBLISHABLE_KEY
 ```
 
 The transmitter token endpoint verifies a short-lived wallet signature, checks that the room wallet matches the signer, and calls `balanceOf` on the official BasePaint Brush contract before granting publish permissions. Observer tokens are subscribe-only.
+
+BasePaint sends a restrictive camera and microphone Permissions Policy. For that reason, those two devices are captured only in Chrome's internal offscreen extension context after an explicit click. The normal page participant subscribes to that verified media participant so the local preview still appears in BasePaint's existing Streaming panel. Screen sharing remains attached to the BasePaint tab and both feeds are combined in the external viewer.
 
 ## Project structure
 

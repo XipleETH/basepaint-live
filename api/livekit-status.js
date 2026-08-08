@@ -1,5 +1,4 @@
-const { RoomServiceClient } = require("livekit-server-sdk");
-const { TrackSource } = require("@livekit/protocol");
+const { RoomServiceClient, TrackSource } = require("livekit-server-sdk");
 
 const ROOM_PATTERN = /^basepaint-day-(\d+)-(0x[a-f0-9]{40})$/i;
 const ADDRESS_PATTERN = /^0x[a-f0-9]{40}$/i;

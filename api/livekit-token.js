@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { AccessToken } = require("livekit-server-sdk");
+const { AccessToken, TrackSource } = require("livekit-server-sdk");
 const { createPublicClient, http, verifyMessage } = require("viem");
 const { base } = require("viem/chains");
 
@@ -117,27 +117,40 @@ module.exports = async function handler(request, response) {
   const identity = normalizedRole === "transmitter"
     ? `artist-${normalizedAddress.slice(2, 10)}`
     : `guest-${crypto.randomUUID()}`;
-  const token = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
-    identity,
-    name: displayName || (normalizedRole === "transmitter" ? normalizedAddress : "BasePaint guest"),
-    metadata: JSON.stringify({
-      role: normalizedRole,
-      address: normalizedRole === "transmitter" ? normalizedAddress : null,
-      brushVerified: normalizedRole === "transmitter",
-    }),
+  const metadata = JSON.stringify({
+    role: normalizedRole,
+    address: normalizedRole === "transmitter" ? normalizedAddress : null,
+    brushVerified: normalizedRole === "transmitter",
   });
-  token.addGrant({
-    roomJoin: true,
-    room,
-    canSubscribe: true,
-    canPublish: normalizedRole === "transmitter",
-    canPublishData: true,
-  });
+  const makeToken = async (participantIdentity, participantName, canSubscribe = true, canPublishSources) => {
+    const token = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
+      identity: participantIdentity,
+      name: participantName,
+      metadata,
+    });
+    token.addGrant({
+      roomJoin: true,
+      room,
+      canSubscribe,
+      canPublish: normalizedRole === "transmitter",
+      canPublishSources: normalizedRole === "transmitter" ? canPublishSources : undefined,
+      canPublishData: true,
+    });
+    return token.toJwt();
+  };
+  const participantName = displayName || (normalizedRole === "transmitter" ? normalizedAddress : "BasePaint guest");
+  const participantToken = await makeToken(identity, participantName, true, [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO]);
+  const mediaIdentity = normalizedRole === "transmitter" ? `artist-media-${normalizedAddress.slice(2, 10)}` : "";
+  const mediaParticipantToken = mediaIdentity
+    ? await makeToken(mediaIdentity, `${participantName} media`, false, [TrackSource.CAMERA, TrackSource.MICROPHONE])
+    : "";
 
   return send(response, 200, {
     serverUrl: process.env.LIVEKIT_URL,
-    participantToken: await token.toJwt(),
+    participantToken,
+    mediaParticipantToken,
     identity,
+    mediaIdentity,
     role: normalizedRole,
   });
 };

@@ -8,6 +8,7 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
   let activeSession = null;
   let commandQueue = Promise.resolve();
   let regionCapture = null;
+  let audioOutputEnabled = true;
 
   // Screen content needs enough pixels and bitrate to keep BasePaint/Aseprite UI
   // readable. When the uplink is constrained, preserve detail and sacrifice frames.
@@ -64,20 +65,56 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     return true;
   }
 
-  function attachAudio(track, participantId) {
-    const id = `bpl-live-audio-${String(participantId || "guest").replace(/[^a-z0-9_-]/gi, "")}`;
+  function audioElementId(participantId, sourceName) {
+    const participant = String(participantId || "guest").replace(/[^a-z0-9_-]/gi, "");
+    const sourceId = String(sourceName || "audio").replace(/[^a-z0-9_-]/gi, "");
+    return `bpl-live-audio-${participant}-${sourceId}`;
+  }
+
+  function attachAudio(track, participantId, sourceName) {
+    const id = audioElementId(participantId, sourceName);
     let element = document.getElementById(id);
     if (!element) {
       element = document.createElement("audio");
       element.id = id;
+      element.className = "bpl-live-audio-track";
       element.autoplay = true;
       element.playsInline = true;
       element.style.display = "none";
       document.body.append(element);
     }
     attachToOneElement(track, element);
-    element.play?.().catch(() => {});
+    element.muted = !audioOutputEnabled;
+    if (audioOutputEnabled) {
+      element.play?.().catch(() => post("bpl-livekit-audio-blocked", sessionPayload(activeSession)));
+    }
     return element;
+  }
+
+  function removeTrackElements(track) {
+    const elements = [...(track?.attachedElements || [])];
+    track?.detach();
+    for (const element of elements) {
+      if (element.classList?.contains("bpl-live-audio-track")) element.remove();
+    }
+  }
+
+  function clearAudioElements() {
+    document.querySelectorAll(".bpl-live-audio-track").forEach((element) => {
+      element.pause?.();
+      element.srcObject = null;
+      element.remove();
+    });
+  }
+
+  function setAudioOutput(enabled) {
+    audioOutputEnabled = Boolean(enabled);
+    document.querySelectorAll(".bpl-live-audio-track").forEach((element) => {
+      element.muted = !audioOutputEnabled;
+      if (audioOutputEnabled) {
+        element.play?.().catch(() => post("bpl-livekit-audio-blocked", sessionPayload(activeSession)));
+      }
+    });
   }
 
   function announceTrack(session, sourceName, active, remote, participantId) {
@@ -96,16 +133,29 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     let remoteScreenSubscribed = false;
     let remoteCameraPublished = false;
     let remoteCameraSubscribed = false;
+    let remoteMicrophonePublished = false;
+    let remoteMicrophoneSubscribed = false;
+    let remoteScreenAudioPublished = false;
+    let remoteScreenAudioSubscribed = false;
     for (const participant of session.room.remoteParticipants.values()) {
       for (const publication of participant.trackPublications.values()) {
         const sourceName = sourceFor(publication, publication.track);
-        if (sourceName === Track.Source.ScreenShare) {
+        const active = !publication.isMuted;
+        if (sourceName === Track.Source.ScreenShare && active) {
           remoteScreenPublished = true;
           remoteScreenSubscribed ||= Boolean(publication.track);
         }
-        if (sourceName === Track.Source.Camera) {
+        if (sourceName === Track.Source.Camera && active) {
           remoteCameraPublished = true;
           remoteCameraSubscribed ||= Boolean(publication.track);
+        }
+        if (sourceName === Track.Source.Microphone && active) {
+          remoteMicrophonePublished = true;
+          remoteMicrophoneSubscribed ||= Boolean(publication.track);
+        }
+        if (sourceName === Track.Source.ScreenShareAudio && active) {
+          remoteScreenAudioPublished = true;
+          remoteScreenAudioSubscribed ||= Boolean(publication.track);
         }
       }
     }
@@ -116,6 +166,10 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
       remoteScreenSubscribed,
       remoteCameraPublished,
       remoteCameraSubscribed,
+      remoteMicrophonePublished,
+      remoteMicrophoneSubscribed,
+      remoteScreenAudioPublished,
+      remoteScreenAudioSubscribed,
     });
   }
 
@@ -124,9 +178,15 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     const track = publication.track;
     if (!track) return false;
     const sourceName = sourceFor(publication, track);
+    if (publication.isMuted) {
+      announceTrack(session, sourceName, false, true, participant.identity);
+      return false;
+    }
+    const ownMediaPublisher = session.role === "transmitter"
+      && String(participant.identity || "").startsWith("artist-media-");
     // Audio is attached separately, so video stays muted to satisfy autoplay rules.
     if (track.kind === Track.Kind.Video) attachVideo(track, sourceName, true);
-    if (track.kind === Track.Kind.Audio) attachAudio(track, participant.identity);
+    if (track.kind === Track.Kind.Audio && !ownMediaPublisher) attachAudio(track, participant.identity, sourceName);
     announceTrack(session, sourceName, true, true, participant.identity);
     return true;
   }
@@ -138,10 +198,10 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
       if (!publication.track) continue;
       const sourceName = sourceFor(publication, publication.track);
       // The broadcaster keeps painting unobstructed. Only their camera gets a local preview.
-      if (publication.track.kind === Track.Kind.Video && sourceName === Track.Source.Camera) {
+      if (!publication.isMuted && publication.track.kind === Track.Kind.Video && sourceName === Track.Source.Camera) {
         attachVideo(publication.track, sourceName, true);
       }
-      announceTrack(session, sourceName, true, false, room.localParticipant.identity);
+      announceTrack(session, sourceName, !publication.isMuted, false, room.localParticipant.identity);
     }
     for (const participant of room.remoteParticipants.values()) {
       for (const publication of participant.trackPublications.values()) {
@@ -161,15 +221,31 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     });
     room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if (activeSession !== session) return;
-      const sourceName = sourceFor(publication, track);
-      if (track.kind === Track.Kind.Video) attachVideo(track, sourceName, true);
-      if (track.kind === Track.Kind.Audio) attachAudio(track, participant.identity);
-      announceTrack(session, sourceName, true, true, participant.identity);
+      attachRemotePublication(session, publication, participant);
       announceSnapshot(session);
     });
     room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-      track.detach();
+      removeTrackElements(track);
       announceTrack(session, sourceFor(publication, track), false, true, participant.identity);
+      announceSnapshot(session);
+    });
+    room.on(RoomEvent.TrackMuted, (publication, participant) => {
+      if (activeSession !== session) return;
+      removeTrackElements(publication.track);
+      announceTrack(session, sourceFor(publication, publication.track), false, !participant.isLocal, participant.identity);
+      announceSnapshot(session);
+    });
+    room.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+      if (activeSession !== session) return;
+      const sourceName = sourceFor(publication, publication.track);
+      if (participant.isLocal) {
+        if (publication.track?.kind === Track.Kind.Video && sourceName === Track.Source.Camera) {
+          attachVideo(publication.track, sourceName, true);
+        }
+        announceTrack(session, sourceName, true, false, participant.identity);
+      } else {
+        attachRemotePublication(session, publication, participant);
+      }
       announceSnapshot(session);
     });
     room.on(RoomEvent.ParticipantConnected, () => announceSnapshot(session));
@@ -177,14 +253,14 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     room.on(RoomEvent.LocalTrackPublished, (publication) => {
       if (activeSession !== session) return;
       const sourceName = sourceFor(publication, publication.track);
-      if (publication.track?.kind === Track.Kind.Video && sourceName === Track.Source.Camera) {
+      if (!publication.isMuted && publication.track?.kind === Track.Kind.Video && sourceName === Track.Source.Camera) {
         attachVideo(publication.track, sourceName, true);
       }
-      announceTrack(session, sourceName, true, false, room.localParticipant.identity);
+      announceTrack(session, sourceName, !publication.isMuted, false, room.localParticipant.identity);
       announceSnapshot(session);
     });
     room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
-      publication.track?.detach();
+      removeTrackElements(publication.track);
       announceTrack(session, sourceFor(publication, publication.track), false, false, room.localParticipant.identity);
       announceSnapshot(session);
     });
@@ -203,6 +279,7 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     });
     room.on(RoomEvent.Disconnected, () => {
       if (activeSession === session) activeSession = null;
+      clearAudioElements();
       post("bpl-livekit-disconnected", sessionPayload(session));
     });
   }
@@ -245,18 +322,6 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
     if (!activeSession) return null;
     if (roomName && activeSession.roomName !== roomName) return null;
     return activeSession.room;
-  }
-
-  async function toggleCamera(payload) {
-    const room = currentRoom(payload?.room);
-    if (!room) throw new Error("LiveKit room is not connected.");
-    await room.localParticipant.setCameraEnabled(Boolean(payload.enabled));
-  }
-
-  async function toggleMicrophone(payload) {
-    const room = currentRoom(payload?.room);
-    if (!room) throw new Error("LiveKit room is not connected.");
-    await room.localParticipant.setMicrophoneEnabled(Boolean(payload.enabled));
   }
 
   async function toggleScreen(payload) {
@@ -439,8 +504,7 @@ const { Room, RoomEvent, ScreenSharePresets, Track } = require("livekit-client")
 
   async function handleLiveKitMessage(data) {
     if (data.type === "bpl-livekit-connect") return connectRoom(data);
-    if (data.type === "bpl-livekit-camera") return toggleCamera(data);
-    if (data.type === "bpl-livekit-mic") return toggleMicrophone(data);
+    if (data.type === "bpl-livekit-audio-output") return setAudioOutput(data.enabled);
     if (data.type === "bpl-livekit-screen") return toggleScreen(data);
     if (data.type === "bpl-livekit-region-prepare") return prepareRegionCapture(data);
     if (data.type === "bpl-livekit-region-start") return startRegionCapture(data);

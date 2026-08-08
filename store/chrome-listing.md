@@ -1,4 +1,4 @@
-# Chrome Web Store listing — BasePaint Live Rooms v0.5.0
+# Chrome Web Store listing — BasePaint Live Rooms v0.6.0
 
 ## Product details
 
@@ -18,7 +18,7 @@ Watch and broadcast verified artist rooms without leaving the BasePaint canvas.
 
 BasePaint Live Rooms adds a Streaming tab beside BasePaint's Chat and Mentions panels. Viewers can discover active artists first, open an artist room, watch a movable live window, see the artist's optional camera, and toggle that wallet's saved-pixel layer over a dimmed canvas.
 
-Artists can share a browser tab, application window, full display, or a selected area. Camera and microphone are optional and only start after the artist chooses them and approves the browser prompt. A pop-out viewer makes it possible to watch the stream on another monitor.
+Artists can share a browser tab, application window, full display, or a selected area. Camera and microphone are optional and only start after the artist chooses them and approves the browser prompt. A pop-out viewer combines the shared screen with the artist camera in picture-in-picture and plays the microphone on another monitor.
 
 Only the wallet already connected to BasePaint can open its transmitter room. The service verifies a short-lived wallet signature and confirms that the wallet owns a BasePaint Brush before granting publishing access.
 
@@ -41,7 +41,9 @@ Add verified live artist rooms and per-artist saved-pixel views directly to the 
 
 ## Permission and host justifications
 
-The package requests no general Chrome API permissions.
+The package requests one narrowly scoped Chrome API permission.
+
+- `offscreen`: create an invisible extension document only while the artist is publishing camera or microphone media. BasePaint explicitly blocks those devices in its page Permissions Policy, so Chrome's offscreen `USER_MEDIA` and `WEB_RTC` context is required. It is opened only after the artist clicks a camera or microphone control and closes when both devices stop.
 
 - `https://basepaint.xyz/*`: insert the Streaming interface only on the Paint page and read public daily theme information.
 - `https://graphql.basepaint.xyz/*`: read public canvas, contribution, and stroke data used for artist lists and saved-pixel layers.
@@ -71,8 +73,9 @@ The extension does not sell data, use data for advertising, determine creditwort
 3. No wallet is needed to inspect today's public artist list, search artists, expand a row, or toggle saved pixels.
 4. Select an artist with saved pixels to verify that only that wallet's contribution appears over the dimmed BasePaint canvas.
 5. Active verified broadcasts appear first with a green **LIVE** label. Open one to subscribe to available screen, camera, and microphone tracks.
-6. Broadcasting requires the wallet already connected to BasePaint to own a BasePaint Brush. Choose **GO LIVE**, sign the displayed short-lived message, and then select camera, screen/window, or selected-area sharing. The extension never requests a seed phrase or private key.
-7. Browser media prompts occur only after the corresponding user action. Ending the room or stopping the browser share stops the outgoing tracks.
+6. Broadcasting requires the wallet already connected to BasePaint to own a BasePaint Brush. Choose **GO LIVE**, sign the displayed short-lived message, and then select camera, microphone, screen/window, or selected-area sharing. The extension never requests a seed phrase or private key.
+7. Browser media prompts occur only after the corresponding user action. The camera preview appears in the existing artist panel. In the pop-out viewer, screen and camera are combined as picture-in-picture and microphone audio can be toggled.
+8. Closing the BasePaint tab, ending the room, or disabling both camera and microphone closes the offscreen capture document and stops its tracks.
 
 ## Required listing assets
 

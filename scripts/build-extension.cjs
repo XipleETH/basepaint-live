@@ -23,6 +23,15 @@ esbuild.buildSync({
 
 esbuild.buildSync({
   absWorkingDir: projectRoot,
+  entryPoints: ["./extension/offscreen.js"],
+  bundle: true,
+  format: "iife",
+  minify: true,
+  outfile: path.join(projectRoot, "extension/offscreen.bundle.js"),
+});
+
+esbuild.buildSync({
+  absWorkingDir: projectRoot,
   entryPoints: ["./extension/viewer.js"],
   bundle: true,
   format: "iife",
